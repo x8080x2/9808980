@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Ethereum Wallet Monitor{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i data-feather="eye" class="me-2"></i>
+            Wallet Monitor Dashboard
+        </h1>
+    </div>
+</div>
+
+<!-- Configuration Cards -->
+<div class="row mb-4">
+    <!-- Wallet Setup -->
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="plus-circle" class="me-2"></i>
+                    Add Wallet
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('setup_wallet') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="private_key" class="form-label">Private Key</label>
+                        <input type="password" class="form-control" id="private_key" name="private_key" 
+                               placeholder="Enter private key or set ETH_PRIVATE_KEY env var">
+                        <div class="form-text">
+                            Private key will be used to derive wallet address. Store securely in environment variables.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="threshold" class="form-label">Alert Threshold (ETH)</label>
+                        <input type="number" class="form-control" id="threshold" name="threshold" 
+                               value="0.01" step="0.001" min="0">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="check_interval" class="form-label">Check Interval (seconds)</label>
+                        <input type="number" class="form-control" id="check_interval" name="check_interval" 
+                               value="300" min="60">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="plus" class="me-1"></i>
+                        Add Wallet
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Telegram Setup -->
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="send" class="me-2"></i>
+                    Telegram Notifications
+                    {% if telegram_config and telegram_config.is_active %}
+                        <span class="badge bg-success ms-2">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">Inactive</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('setup_telegram') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="bot_token" class="form-label">Bot Token</label>
+                        <input type="password" class="form-control" id="bot_token" name="bot_token" 
+                               placeholder="Bot token or set TELEGRAM_BOT_TOKEN env var">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="chat_id" class="form-label">Chat ID</label>
+                        <input type="text" class="form-control" id="chat_id" name="chat_id" 
+                               placeholder="Chat ID or set TELEGRAM_CHAT_ID env var">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="settings" class="me-1"></i>
+                        Configure Telegram
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Wallets -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="wallet" class="me-2"></i>
+                    Monitored Wallets ({{ wallets|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if wallets %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Address</th>
+                                    <th>Last Balance</th>
+                                    <th>Threshold</th>
+                                    <th>Last Checked</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wallet in wallets %}
+                                <tr>
+                                    <td>
+                                        <code class="wallet-address">{{ wallet.address[:10] }}...{{ wallet.address[-8:] }}</code>
+                                    </td>
+                                    <td>
+                                        {% if wallet.last_balance and wallet.last_balance.isdigit() %}
+                                            {{ "%.6f"|format((wallet.last_balance|int / 1000000000000000000)) }} ETH
+                                        {% else %}
+                                            <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ wallet.threshold_alert }} ETH</td>
+                                    <td>
+                                        {% if wallet.last_checked %}
+                                            <small>{{ wallet.last_checked.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if wallet.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('wallet_details', address=wallet.address) }}" 
+                                               class="btn btn-outline-primary">
+                                                <i data-feather="eye" width="16" height="16"></i>
+                                            </a>
+                                            <a href="{{ url_for('manual_check', address=wallet.address) }}" 
+                                               class="btn btn-outline-info">
+                                                <i data-feather="refresh-cw" width="16" height="16"></i>
+                                            </a>
+                                            <a href="{{ url_for('toggle_wallet', address=wallet.address) }}" 
+                                               class="btn btn-outline-secondary">
+                                                <i data-feather="{% if wallet.is_active %}pause{% else %}play{% endif %}" width="16" height="16"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="inbox" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No wallets configured yet. Add a wallet using the form above.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+{% if recent_history %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="activity" class="me-2"></i>
+                    Recent Balance Changes
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Wallet</th>
+                                <th>Balance</th>
+                                <th>Change</th>
+                                <th>Notification</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for history in recent_history[-10:] %}
+                            <tr>
+                                <td><small>{{ history.timestamp.strftime('%m-%d %H:%M') }}</small></td>
+                                <td>
+                                    <code class="small">{{ history.wallet_address[:8] }}...</code>
+                                </td>
+                                <td>
+                                    {% if history.balance.isdigit() %}
+                                        {{ "%.4f"|format((history.balance|int / 1000000000000000000)) }} ETH
+                                    {% else %}
+                                        <span class="text-muted">Error</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if history.balance_change and history.balance_change != "0" %}
+                                        {% set change_eth = (history.balance_change|int / 1000000000000000000) if history.balance_change.lstrip('-').isdigit() else 0 %}
+                                        {% if change_eth > 0 %}
+                                            <span class="text-success">+{{ "%.4f"|format(change_eth) }} ETH</span>
+                                        {% elif change_eth < 0 %}
+                                            <span class="text-danger">{{ "%.4f"|format(change_eth) }} ETH</span>
+                                        {% else %}
+                                            <span class="text-muted">No change</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">No change</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if history.notification_sent %}
+                                        <i data-feather="check" class="text-success" width="16" height="16"></i>
+                                    {% else %}
+                                        <i data-feather="x" class="text-muted" width="16" height="16"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- System Status -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="info" class="me-2"></i>
+                    System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 mb-0">{{ wallets|length }}</div>
+                            <small class="text-muted">Monitored Wallets</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 mb-0">
+                                {% if telegram_config and telegram_config.is_active %}
+                                    <span class="text-success">✓</span>
+                                {% else %}
+                                    <span class="text-danger">✗</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">Telegram Status</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 mb-0">5m</div>
+                            <small class="text-muted">Check Interval</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 mb-0">{{ recent_history|length }}</div>
+                            <small class="text-muted">Recent Records</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh page every 30 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+    
+    // Initialize feather icons after dynamic content
+    feather.replace();
+</script>
+{% endblock %}

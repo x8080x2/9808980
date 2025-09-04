@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Wallet Details - {{ wallet.address }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="mb-0">
+                <i data-feather="wallet" class="me-2"></i>
+                Wallet Details
+            </h1>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i data-feather="arrow-left" class="me-1"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Wallet Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="info" class="me-2"></i>
+                    Wallet Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Address:</h6>
+                        <div class="d-flex align-items-center mb-3">
+                            <code class="me-2">{{ wallet.address }}</code>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('{{ wallet.address }}')">
+                                <i data-feather="copy" width="16" height="16"></i>
+                            </button>
+                        </div>
+                        
+                        <h6>Current Balance:</h6>
+                        <p class="h4 text-success mb-3">
+                            {% if current_balance != "Error fetching balance" %}
+                                {{ current_balance }} ETH
+                            {% else %}
+                                <span class="text-danger">{{ current_balance }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>Alert Threshold:</h6>
+                        <p class="mb-3">{{ wallet.threshold_alert }} ETH</p>
+                        
+                        <h6>Status:</h6>
+                        <p class="mb-3">
+                            {% if wallet.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </p>
+                        
+                        <h6>Last Checked:</h6>
+                        <p class="mb-3">
+                            {% if wallet.last_checked %}
+                                {{ wallet.last_checked.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="btn-group">
+                            <a href="{{ url_for('manual_check', address=wallet.address) }}" 
+                               class="btn btn-primary">
+                                <i data-feather="refresh-cw" class="me-1"></i>
+                                Manual Check
+                            </a>
+                            <a href="{{ url_for('toggle_wallet', address=wallet.address) }}" 
+                               class="btn btn-outline-secondary">
+                                <i data-feather="{% if wallet.is_active %}pause{% else %}play{% endif %}" class="me-1"></i>
+                                {% if wallet.is_active %}Deactivate{% else %}Activate{% endif %}
+                            </a>
+                            <a href="https://etherscan.io/address/{{ wallet.address }}" 
+                               target="_blank" class="btn btn-outline-info">
+                                <i data-feather="external-link" class="me-1"></i>
+                                View on Etherscan
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance History Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="trending-up" class="me-2"></i>
+                    Balance History (Last 7 Days)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="balanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance History Table -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="list" class="me-2"></i>
+                    Balance Change History
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if history %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Balance</th>
+                                    <th>Change</th>
+                                    <th>Notification Sent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in history %}
+                                <tr>
+                                    <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        {% if record.balance.isdigit() %}
+                                            {{ "%.6f"|format((record.balance|int / 1000000000000000000)) }} ETH
+                                        {% else %}
+                                            <span class="text-muted">Error</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.balance_change and record.balance_change != "0" %}
+                                            {% set change_eth = (record.balance_change|int / 1000000000000000000) if record.balance_change.lstrip('-').isdigit() else 0 %}
+                                            {% if change_eth > 0 %}
+                                                <span class="text-success">+{{ "%.6f"|format(change_eth) }} ETH</span>
+                                            {% elif change_eth < 0 %}
+                                                <span class="text-danger">{{ "%.6f"|format(change_eth) }} ETH</span>
+                                            {% else %}
+                                                <span class="text-muted">No change</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">No change</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.notification_sent %}
+                                            <i data-feather="check" class="text-success"></i>
+                                        {% else %}
+                                            <i data-feather="x" class="text-muted"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="clock" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No balance history yet. Check back after the next monitoring cycle.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i data-feather="arrow-right-left" class="me-2"></i>
+                    Recent Transactions
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Transaction Hash</th>
+                                    <th>From/To</th>
+                                    <th>Value</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tx in transactions %}
+                                <tr>
+                                    <td>
+                                        {% if tx.is_incoming %}
+                                            <span class="badge bg-success">
+                                                <i data-feather="arrow-down" width="12" height="12"></i>
+                                                Received
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i data-feather="arrow-up" width="12" height="12"></i>
+                                                Sent
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="https://etherscan.io/tx/{{ tx.tx_hash }}" target="_blank" class="text-decoration-none">
+                                            <code>{{ tx.tx_hash[:10] }}...{{ tx.tx_hash[-8:] }}</code>
+                                            <i data-feather="external-link" width="12" height="12"></i>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if tx.is_incoming %}
+                                            <small>From: <code>{{ tx.from_address[:8] }}...</code></small>
+                                        {% else %}
+                                            <small>To: <code>{{ tx.to_address[:8] }}...</code></small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if tx.value and tx.value.isdigit() %}
+                                            {{ "%.6f"|format((tx.value|int / 1000000000000000000)) }} ETH
+                                        {% else %}
+                                            <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ tx.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="inbox" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No recent transactions found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Copy to clipboard function
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            // Show a brief success message
+            const button = event.target.closest('button');
+            const originalIcon = button.innerHTML;
+            button.innerHTML = '<i data-feather="check" width="16" height="16"></i>';
+            feather.replace();
+            setTimeout(() => {
+                button.innerHTML = originalIcon;
+                feather.replace();
+            }, 2000);
+        });
+    }
+
+    // Load balance history chart
+    async function loadBalanceChart() {
+        try {
+            const response = await fetch(`/api/balance_history/{{ wallet.address }}?days=7`);
+            const data = await response.json();
+            
+            const ctx = document.getElementById('balanceChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(item => new Date(item.timestamp).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Balance (ETH)',
+                        data: data.map(item => item.balance),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading balance chart:', error);
+            document.getElementById('balanceChart').style.display = 'none';
+        }
+    }
+
+    // Initialize chart when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        loadBalanceChart();
+        feather.replace();
+    });
+</script>
+{% endblock %}
