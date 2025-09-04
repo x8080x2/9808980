@@ -52,14 +52,10 @@
                     </div>
                     <div class="row mt-2">
                         <div class="col-md-3">
-                            <strong>Visible Logs:</strong> 
-                            <span id="visibleCount" class="badge bg-secondary">0</span>
-                        </div>
-                        <div class="col-md-3">
                             <strong>Total Logs:</strong> 
                             <span id="logCount" class="badge bg-dark">0</span>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-9">
                             <strong>Level Stats:</strong> 
                             <span id="levelStats" class="text-muted">No events yet</span>
                         </div>
@@ -92,13 +88,7 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="autoScroll" class="form-label">Auto Scroll</label>
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" id="autoScroll" checked>
-                                <label class="form-check-label" for="autoScroll">
-                                    Scroll to bottom
-                                </label>
-                            </div>
+                            <!-- Auto scroll removed -->
                         </div>
                         <div class="col-md-3">
                             <label for="maxLogs" class="form-label">Max Log Entries</label>
@@ -370,10 +360,6 @@ class LogMonitor {
         this.trimLogs();
         this.renderLogs();
         this.updateStats();
-
-        if (document.getElementById('autoScroll').checked) {
-            this.scrollToBottom();
-        }
     }
 
     trimLogs() {
@@ -439,13 +425,6 @@ class LogMonitor {
         const html = filteredLogs.map(log => this.formatLogEntry(log)).join('');
         container.innerHTML = html;
 
-        // Update visible count
-        document.getElementById('visibleCount').textContent = filteredLogs.length;
-
-        // Auto-scroll to bottom if showing latest logs
-        if (!this.paused) {
-            this.scrollToBottom();
-        }
         feather.replace(); // Re-render feather icons after updating HTML
     }
 
@@ -563,11 +542,6 @@ class LogMonitor {
         } else {
             select.value = 'all';
         }
-    }
-
-    scrollToBottom() {
-        const container = document.getElementById('logContainer');
-        container.scrollTop = container.scrollHeight;
     }
 
     // Helper methods for log levels
