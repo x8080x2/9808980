@@ -16,8 +16,7 @@ class WalletMonitor {
         // Initialize tooltips and popovers
         this.initializeBootstrapComponents();
         
-        // Initialize real-time monitoring
-        this.initializeWebSocket();
+        // WebSocket monitoring is handled by individual pages as needed
     }
 
     setupEventListeners() {
@@ -259,69 +258,7 @@ class WalletMonitor {
         }, 5000);
     }
 
-    initializeWebSocket() {
-        if (typeof io === 'undefined') {
-            console.log('[INFO] Socket.IO not available, skipping real-time monitoring');
-            return;
-        }
-
-        try {
-            this.socket = io();
-            this.setupSocketListeners();
-            console.log('[INFO] Connecting to real-time monitoring...');
-        } catch (error) {
-            console.error('[ERROR] Failed to initialize WebSocket:', error);
-        }
-    }
-
-    setupSocketListeners() {
-        if (!this.socket) return;
-
-        // Connection events
-        this.socket.on('connect', () => {
-            this.connected = true;
-            console.log('Connected to real-time monitoring');
-            this.updateConnectionStatus(true);
-            
-            // Automatically start monitoring
-            this.socket.emit('start_monitoring');
-        });
-
-        this.socket.on('disconnect', () => {
-            this.connected = false;
-            console.log('[WARNING] Disconnected from real-time monitoring');
-            this.updateConnectionStatus(false);
-        });
-
-        // Wallet status updates
-        this.socket.on('wallet_status', (wallets) => {
-            console.log('Initial wallet status received:', wallets);
-            this.updateWalletStatus(wallets);
-        });
-
-        // Balance updates
-        this.socket.on('balance_update', (data) => {
-            console.log('Balance update received:', data);
-            this.updateWalletBalance(data);
-        });
-
-        // Log events for notifications
-        this.socket.on('log_event', (data) => {
-            if (data.level === 'success' && data.message.includes('Balance')) {
-                this.showNotification(data.message, 'success');
-            } else if (data.level === 'error') {
-                this.showNotification(data.message, 'danger');
-            }
-        });
-
-        // Monitoring status
-        this.socket.on('monitoring_status', (data) => {
-            console.log('Monitoring status:', data);
-            if (data.status === 'started') {
-                this.showNotification('Real-time monitoring started', 'success');
-            }
-        });
-    }
+    
 
     updateConnectionStatus(connected) {
         // Update any connection indicators in the UI
