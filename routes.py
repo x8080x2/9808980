@@ -232,7 +232,7 @@ def logs():
 def configure_forwarding():
     try:
         receiver_address = request.form.get('receiver_address', '').strip()
-        min_forward_amount = request.form.get('min_forward_amount', '0.001')
+        keep_threshold = request.form.get('keep_threshold', '0.01')  # Amount to KEEP in wallet
         eth_rpc_url = request.form.get('eth_rpc_url', '').strip()
         
         # Validate receiver address
@@ -252,7 +252,8 @@ def configure_forwarding():
         active_wallets = WalletConfig.query.filter_by(is_active=True).all()
         
         for wallet in active_wallets:
-            wallet.min_forward_amount = min_forward_amount
+            # Use threshold_alert as the amount to KEEP in wallet (not minimum to forward)
+            wallet.threshold_alert = keep_threshold  
             wallet.forwarding_enabled = True
         
         db.session.commit()
@@ -262,7 +263,7 @@ def configure_forwarding():
         if eth_rpc_url:
             os.environ['ETH_RPC_URL'] = eth_rpc_url
         
-        flash(f'Forwarding configured successfully! Payments will be forwarded to {receiver_address}', 'success')
+        flash(f'Forwarding configured successfully! All funds except {keep_threshold} ETH will be forwarded to {receiver_address}', 'success')
         
     except Exception as e:
         logging.error(f"Error configuring forwarding: {str(e)}")

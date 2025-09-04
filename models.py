@@ -13,7 +13,7 @@ class WalletConfig(db.Model):
     last_balance = db.Column(db.String(50), default="0")
     last_checked = db.Column(db.DateTime)
     forwarding_enabled = db.Column(db.Boolean, default=True)
-    min_forward_amount = db.Column(db.String(50), default="0.001")  # Minimum ETH to forward
+    # threshold_alert now serves as the amount to KEEP in wallet (not minimum to forward)
 
 class BalanceHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)

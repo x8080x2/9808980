@@ -40,20 +40,21 @@ def forward_payment(wallet_config, amount_wei):
         gas_limit = 21000
         gas_cost = gas_price * gas_limit
         
-        # Calculate amount to send (total balance minus gas)
+        # Get current balance and calculate amount to send
         current_balance = w3.eth.get_balance(wallet_config.address)
-        amount_to_send = current_balance - gas_cost
         
-        # Check if we have enough to cover gas
+        # Keep a threshold amount in the wallet (use threshold_alert as keep amount)
+        keep_threshold_wei = Web3.to_wei(Decimal(wallet_config.threshold_alert), 'ether')
+        
+        # Calculate amount to send: Total Balance - Gas Cost - Keep Threshold
+        amount_to_send = current_balance - gas_cost - keep_threshold_wei
+        
+        # Check if we have enough to send after keeping threshold and gas
         if amount_to_send <= 0:
-            logging.warning(f"Insufficient balance to cover gas costs for {wallet_config.address}")
+            logging.info(f"Insufficient balance to forward after keeping {wallet_config.threshold_alert} ETH threshold and gas costs for {wallet_config.address}")
             return False
         
-        # Check minimum forward amount
-        min_forward_wei = Web3.to_wei(Decimal(wallet_config.min_forward_amount), 'ether')
-        if amount_to_send < min_forward_wei:
-            logging.info(f"Amount {Web3.from_wei(amount_to_send, 'ether')} ETH below minimum forward threshold")
-            return False
+        logging.info(f"Forwarding {Web3.from_wei(amount_to_send, 'ether')} ETH from {wallet_config.address}, keeping {wallet_config.threshold_alert} ETH + gas")
         
         # Build transaction
         transaction = {
@@ -124,7 +125,7 @@ def send_forwarding_notification(wallet_config, amount_wei, tx_hash, receiver_ad
         logging.error(f"Error sending forwarding notification: {str(e)}")
 
 def check_for_incoming_payments(wallet_config):
-    """Check for new incoming payments and trigger forwarding"""
+    """Check for new incoming payments and trigger forwarding of ALL funds except threshold"""
     try:
         etherscan = EtherscanAPI()
         transactions = etherscan.get_transactions(wallet_config.address)
@@ -147,11 +148,11 @@ def check_for_incoming_payments(wallet_config):
                     
                     logging.info(f"New incoming payment detected: {Web3.from_wei(amount_wei, 'ether')} ETH to {wallet_config.address}")
                     
-                    # Trigger forwarding
+                    # Trigger forwarding of ALL available funds (except threshold)
                     if forward_payment(wallet_config, amount_wei):
-                        logging.info(f"Payment forwarded successfully from {wallet_config.address}")
+                        logging.info(f"All available funds forwarded successfully from {wallet_config.address}")
                     else:
-                        logging.error(f"Failed to forward payment from {wallet_config.address}")
+                        logging.error(f"Failed to forward funds from {wallet_config.address}")
                 
     except Exception as e:
         logging.error(f"Error checking for incoming payments: {str(e)}")
