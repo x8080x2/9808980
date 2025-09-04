@@ -2,8 +2,7 @@
 
 class WalletMonitor {
     constructor() {
-        this.socket = null;
-        this.connected = false;
+        // Removed WebSocket properties to prevent conflicts with logs page
         this.init();
     }
 

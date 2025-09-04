@@ -276,23 +276,8 @@ def configure_forwarding():
 def handle_connect():
     logging.info('Client connected to WebSocket')
     
-    # Send lightweight wallet status (no API calls on connect)
-    try:
-        wallets = WalletConfig.query.filter_by(is_active=True).all()
-        wallet_data = []
-        
-        for wallet in wallets:
-            wallet_data.append({
-                'address': wallet.address,
-                'balance': 0,  # Don't fetch balance on connect to prevent timeout
-                'threshold': wallet.threshold_alert,
-                'is_active': wallet.is_active
-            })
-        
-        emit('wallet_status', wallet_data)
-        
-    except Exception as e:
-        logging.error(f"Error sending initial wallet status: {str(e)}")
+    # Only send wallet status if explicitly requested from logs page
+    # Don't automatically send data to prevent connection conflicts
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -315,6 +300,26 @@ def handle_stop_monitoring():
     logging.info('Stopping real-time wallet monitoring')
     stop_realtime_monitoring()
     emit('monitoring_status', {'status': 'stopped', 'message': 'Real-time monitoring stopped'})
+
+@socketio.on('get_wallet_status')
+def handle_get_wallet_status():
+    """Send wallet status only when explicitly requested"""
+    try:
+        wallets = WalletConfig.query.filter_by(is_active=True).all()
+        wallet_data = []
+        
+        for wallet in wallets:
+            wallet_data.append({
+                'address': wallet.address,
+                'balance': 0,  # Don't fetch balance to prevent timeout
+                'threshold': wallet.threshold_alert,
+                'is_active': wallet.is_active
+            })
+        
+        emit('wallet_status', wallet_data)
+        
+    except Exception as e:
+        logging.error(f"Error sending wallet status: {str(e)}")
 
 @socketio.on('check_wallet')
 def handle_check_wallet(data):

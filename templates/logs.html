@@ -269,8 +269,9 @@ class LogMonitor {
         this.socket.on('connect', () => {
             this.updateConnectionStatus('connected');
             this.addLog('System', 'Connected to monitoring system', 'success');
-            // Don't automatically start monitoring - wait for explicit request
-            // this.socket.emit('start_monitoring');
+            
+            // Request wallet status only on logs page
+            this.socket.emit('get_wallet_status');
         });
 
         this.socket.on('disconnect', () => {
