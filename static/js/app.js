@@ -2,6 +2,8 @@
 
 class WalletMonitor {
     constructor() {
+        this.socket = null;
+        this.connected = false;
         this.init();
     }
 
@@ -13,6 +15,9 @@ class WalletMonitor {
         
         // Initialize tooltips and popovers
         this.initializeBootstrapComponents();
+        
+        // Initialize real-time monitoring
+        this.initializeWebSocket();
     }
 
     setupEventListeners() {
@@ -252,6 +257,126 @@ class WalletMonitor {
         setTimeout(() => {
             alertDiv.remove();
         }, 5000);
+    }
+
+    initializeWebSocket() {
+        if (typeof io === 'undefined') {
+            console.log('[INFO] Socket.IO not available, skipping real-time monitoring');
+            return;
+        }
+
+        try {
+            this.socket = io();
+            this.setupSocketListeners();
+            console.log('[INFO] Connecting to real-time monitoring...');
+        } catch (error) {
+            console.error('[ERROR] Failed to initialize WebSocket:', error);
+        }
+    }
+
+    setupSocketListeners() {
+        if (!this.socket) return;
+
+        // Connection events
+        this.socket.on('connect', () => {
+            this.connected = true;
+            console.log('Connected to real-time monitoring');
+            this.updateConnectionStatus(true);
+            
+            // Automatically start monitoring
+            this.socket.emit('start_monitoring');
+        });
+
+        this.socket.on('disconnect', () => {
+            this.connected = false;
+            console.log('[WARNING] Disconnected from real-time monitoring');
+            this.updateConnectionStatus(false);
+        });
+
+        // Wallet status updates
+        this.socket.on('wallet_status', (wallets) => {
+            console.log('Initial wallet status received:', wallets);
+            this.updateWalletStatus(wallets);
+        });
+
+        // Balance updates
+        this.socket.on('balance_update', (data) => {
+            console.log('Balance update received:', data);
+            this.updateWalletBalance(data);
+        });
+
+        // Log events for notifications
+        this.socket.on('log_event', (data) => {
+            if (data.level === 'success' && data.message.includes('Balance')) {
+                this.showNotification(data.message, 'success');
+            } else if (data.level === 'error') {
+                this.showNotification(data.message, 'danger');
+            }
+        });
+
+        // Monitoring status
+        this.socket.on('monitoring_status', (data) => {
+            console.log('Monitoring status:', data);
+            if (data.status === 'started') {
+                this.showNotification('Real-time monitoring started', 'success');
+            }
+        });
+    }
+
+    updateConnectionStatus(connected) {
+        // Update any connection indicators in the UI
+        const indicators = document.querySelectorAll('.connection-status');
+        indicators.forEach(indicator => {
+            indicator.className = `connection-status ${connected ? 'text-success' : 'text-danger'}`;
+            indicator.textContent = connected ? 'Connected' : 'Disconnected';
+        });
+    }
+
+    updateWalletStatus(wallets) {
+        wallets.forEach(wallet => {
+            this.updateWalletBalance({
+                address: wallet.address,
+                balance: wallet.balance,
+                timestamp: new Date().toISOString()
+            });
+        });
+    }
+
+    updateWalletBalance(data) {
+        // Find wallet row in the table
+        const walletRows = document.querySelectorAll('tr[data-wallet-address]');
+        walletRows.forEach(row => {
+            const address = row.getAttribute('data-wallet-address');
+            if (address === data.address) {
+                // Update balance display
+                const balanceCell = row.querySelector('.wallet-balance');
+                if (balanceCell) {
+                    balanceCell.textContent = `${parseFloat(data.balance).toFixed(6)} ETH`;
+                    balanceCell.classList.add('text-success');
+                    setTimeout(() => {
+                        balanceCell.classList.remove('text-success');
+                    }, 2000);
+                }
+
+                // Update last checked time
+                const lastCheckedCell = row.querySelector('.last-checked');
+                if (lastCheckedCell) {
+                    lastCheckedCell.textContent = this.formatTime(data.timestamp);
+                }
+            }
+        });
+
+        // Update any wallet cards
+        const walletCards = document.querySelectorAll('.wallet-card');
+        walletCards.forEach(card => {
+            const address = card.getAttribute('data-wallet-address');
+            if (address === data.address) {
+                const balanceElement = card.querySelector('.wallet-balance');
+                if (balanceElement) {
+                    balanceElement.textContent = `${parseFloat(data.balance).toFixed(6)} ETH`;
+                }
+            }
+        });
     }
 }
 

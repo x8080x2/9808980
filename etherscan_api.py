@@ -28,7 +28,16 @@ class EtherscanAPI:
                 if data.get('status') == '1':
                     return data.get('result')
                 else:
-                    logging.error(f"Etherscan API error: {data.get('message', 'Unknown error')}")
+                    # Handle specific API errors gracefully
+                    error_message = data.get('message', 'Unknown error')
+                    if 'rate limit' in error_message.lower():
+                        logging.warning(f"Etherscan API rate limited, increasing delay")
+                        time.sleep(1)  # Additional delay for rate limiting
+                    elif 'no transactions found' in error_message.lower():
+                        logging.debug(f"No transactions found for address (normal)")
+                        return []  # Return empty list instead of None for no transactions
+                    else:
+                        logging.error(f"Etherscan API error: {error_message}")
                     return None
             else:
                 logging.error(f"HTTP error: {response.status_code}")

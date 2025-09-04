@@ -125,24 +125,28 @@
                             </thead>
                             <tbody>
                                 {% for wallet in wallets %}
-                                <tr>
+                                <tr data-wallet-address="{{ wallet.address }}">
                                     <td>
                                         <code class="wallet-address">{{ wallet.address[:10] }}...{{ wallet.address[-8:] }}</code>
                                     </td>
                                     <td>
+                                        <span class="wallet-balance">
                                         {% if wallet.last_balance and wallet.last_balance.isdigit() %}
                                             {{ "%.6f"|format((wallet.last_balance|int / 1000000000000000000)) }} ETH
                                         {% else %}
                                             <span class="text-muted">Unknown</span>
                                         {% endif %}
+                                        </span>
                                     </td>
                                     <td>{{ wallet.threshold_alert }} ETH</td>
                                     <td>
+                                        <span class="last-checked">
                                         {% if wallet.last_checked %}
                                             <small>{{ wallet.last_checked.strftime('%Y-%m-%d %H:%M') }}</small>
                                         {% else %}
                                             <span class="text-muted">Never</span>
                                         {% endif %}
+                                        </span>
                                     </td>
                                     <td>
                                         {% if wallet.is_active %}
