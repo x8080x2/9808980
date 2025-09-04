@@ -308,12 +308,12 @@ def handle_disconnect():
 
 @socketio.on('start_monitoring')
 def handle_start_monitoring():
-    """Start real-time monitoring for all active wallets"""
+    """Initialize real-time monitoring (lightweight)"""
     from wallet_monitor_realtime import start_realtime_monitoring
     
-    logging.info('Starting real-time wallet monitoring via WebSocket')
+    logging.info('Initializing real-time wallet monitoring via WebSocket')
     start_realtime_monitoring(socketio)
-    emit('monitoring_status', {'status': 'started', 'message': 'Real-time monitoring active'})
+    emit('monitoring_status', {'status': 'started', 'message': 'Real-time monitoring initialized'})
 
 @socketio.on('stop_monitoring')
 def handle_stop_monitoring():
@@ -323,3 +323,13 @@ def handle_stop_monitoring():
     logging.info('Stopping real-time wallet monitoring')
     stop_realtime_monitoring()
     emit('monitoring_status', {'status': 'stopped', 'message': 'Real-time monitoring stopped'})
+
+@socketio.on('check_wallet')
+def handle_check_wallet(data):
+    """Check a specific wallet on demand"""
+    from wallet_monitor_realtime import check_single_wallet_on_demand
+    
+    wallet_address = data.get('address')
+    if wallet_address:
+        success = check_single_wallet_on_demand(wallet_address)
+        emit('wallet_check_result', {'address': wallet_address, 'success': success})

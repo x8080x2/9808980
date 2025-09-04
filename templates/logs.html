@@ -189,7 +189,7 @@
 /* Styling for highlighted parts */
 .text-primary { color: #007bff !important; }
 .text-info { color: #17a2b8 !important; }
-.text-muted { color: #6c757d !important; }
+.text-muted { color: #6c7575d !important; }
 
 .status-indicator {
     width: 12px;
@@ -250,6 +250,7 @@ class LogMonitor {
         this.eventCount = 0;
         this.maxLogs = 500;
         this.activeWallets = new Set();
+        this.monitoringInterval = null; // To hold the interval ID
 
         this.init();
     }
@@ -264,11 +265,17 @@ class LogMonitor {
         this.socket.on('connect', () => {
             this.updateConnectionStatus('connected');
             this.addLog('System', 'Connected to monitoring system', 'success');
+            this.socket.emit('start_monitoring');
+            // Check wallets periodically instead of continuous monitoring
+            this.startPeriodicChecks();
         });
 
         this.socket.on('disconnect', () => {
             this.updateConnectionStatus('disconnected');
             this.addLog('System', 'Disconnected from monitoring system', 'warning');
+            if (this.monitoringInterval) {
+                clearInterval(this.monitoringInterval);
+            }
         });
 
         this.socket.on('balance_update', (data) => {
@@ -300,6 +307,15 @@ class LogMonitor {
         this.socket.on('log_event', (data) => {
             this.addLog(data.source || 'System', data.message, data.level || 'info');
         });
+        
+        // Wallet check results
+        this.socket.on('wallet_check_result', (data) => {
+            if (data.success) {
+                this.addLog(data.address, 'Balance check completed', 'info');
+            } else {
+                this.addLog(data.address, 'Balance check failed', 'warning');
+            }
+        });
 
         // Specific handlers for block and transaction logs
         this.socket.on('block_monitor', (data) => {
@@ -309,9 +325,9 @@ class LogMonitor {
 
         this.socket.on('transaction_monitor', (data) => {
             const formattedTx = `
-                Hash: <code class="text-info">${data.hash}</strong>, 
-                From: <code class="text-info">${data.from}</strong>, 
-                To: <code class="text-info">${data.to}</strong>, 
+                Hash: <code class="text-info">${data.hash}</code>, 
+                From: <code class="text-info">${data.from}</code>, 
+                To: <code class="text-info">${data.to}</code>, 
                 Value: <strong>${data.value} ETH</strong>, 
                 Gas Used: <strong>${data.gasUsed}</strong>
             `;
@@ -542,6 +558,20 @@ class LogMonitor {
         } else {
             select.value = 'all';
         }
+    }
+
+    // Periodic wallet check
+    startPeriodicChecks() {
+        // Clear any existing interval to prevent duplicates
+        if (this.monitoringInterval) {
+            clearInterval(this.monitoringInterval);
+        }
+        // Check every 30 seconds
+        this.monitoringInterval = setInterval(() => {
+            this.activeWallets.forEach(address => {
+                this.socket.emit('check_wallet_balance', { address: address });
+            });
+        }, 30000); // 30 seconds
     }
 
     // Helper methods for log levels
