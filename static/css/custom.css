@@ -40,12 +40,12 @@
     .wallet-address {
         font-size: 0.75rem;
     }
-    
+
     .btn-group {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .btn-group > .btn {
         margin-bottom: 0.25rem;
     }
@@ -138,4 +138,94 @@
 
 .status-card.danger {
     border-left-color: var(--bs-danger);
+}
+
+/* Real-time monitoring styles */
+.monitoring-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.monitoring-status.connected {
+    background: rgba(40, 167, 69, 0.9);
+}
+
+.monitoring-status.disconnected {
+    background: rgba(220, 53, 69, 0.9);
+}
+
+.monitoring-status.connecting {
+    background: rgba(255, 193, 7, 0.9);
+    color: black;
+}
+
+/* Enhanced log entry styles */
+.log-entry {
+    display: grid;
+    grid-template-columns: 80px 120px 30px 1fr;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 13px;
+    line-height: 1.4;
+    transition: background-color 0.2s;
+}
+
+.log-entry:hover {
+    background-color: #f8f9fa;
+}
+
+.log-entry.success {
+    border-left: 3px solid #28a745;
+}
+
+.log-entry.warning {
+    border-left: 3px solid #ffc107;
+}
+
+.log-entry.error {
+    border-left: 3px solid #dc3545;
+}
+
+.log-entry.info {
+    border-left: 3px solid #17a2b8;
+}
+
+.log-time {
+    color: #6c757d;
+    font-family: monospace;
+}
+
+.log-source .badge {
+    font-size: 11px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.log-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.log-message {
+    word-break: break-word;
+}
+
+.log-message code {
+    font-size: 11px;
+    padding: 1px 4px;
+}
+
+.log-message .badge {
+    font-size: 10px;
+    margin: 0 2px;
 }

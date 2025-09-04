@@ -41,6 +41,7 @@ def realtime_monitor_loop(socketio_instance):
     global should_stop_monitoring
     
     logging.info("Starting real-time wallet monitoring loop")
+    last_block_number = 0
     
     try:
         socketio_instance.emit('log_event', {
@@ -54,13 +55,35 @@ def realtime_monitor_loop(socketio_instance):
     while not should_stop_monitoring:
         try:
             with app.app_context():
+                # Check for new blocks first
+                try:
+                    current_block = check_latest_block(socketio_instance, last_block_number)
+                    if current_block > last_block_number:
+                        last_block_number = current_block
+                except Exception as e:
+                    logging.error(f"Error checking latest block: {str(e)}")
+                
                 active_wallets = WalletConfig.query.filter_by(is_active=True).all()
+                
+                # Emit monitoring heartbeat
+                try:
+                    socketio_instance.emit('log_event', {
+                        'source': 'Monitor',
+                        'message': f'Monitoring {len(active_wallets)} wallets at block {last_block_number}',
+                        'level': 'info'
+                    })
+                except:
+                    pass
                 
                 for wallet in active_wallets:
                     if should_stop_monitoring:
                         break
                         
                     try:
+                        # Check for new transactions first
+                        check_new_transactions(wallet, socketio_instance)
+                        
+                        # Then check balance changes
                         balance_changed = check_wallet_balance_realtime(wallet, socketio_instance)
                         
                         if balance_changed:
@@ -157,13 +180,22 @@ Balance has {change_type} by {abs(balance_change):.6f} ETH
             
             logging.info(f"Real-time balance update for {wallet_config.address}: {current_balance_eth:.6f} ETH (change: {balance_change:+.6f})")
             
-            # Emit log event for monitoring
+            # Emit detailed log event for monitoring
             try:
+                change_type = "increased" if balance_change > 0 else "decreased"
                 socketio_instance.emit('log_event', {
                     'source': wallet_config.address,
-                    'message': f"Balance changed by {balance_change:+.6f} ETH (now {current_balance_eth:.6f} ETH)",
+                    'message': f"💰 Balance {change_type}: {balance_change:+.6f} ETH → {current_balance_eth:.6f} ETH total",
                     'level': 'success' if balance_change > 0 else 'warning'
                 })
+                
+                # Also emit a payment detection if threshold is met
+                if should_notify and balance_change != 0:
+                    socketio_instance.emit('log_event', {
+                        'source': 'Alert',
+                        'message': f"🚨 Threshold alert: {abs(balance_change):.6f} ETH {change_type} for {wallet_config.address[:10]}...",
+                        'level': 'error' if balance_change < 0 else 'success'
+                    })
             except:
                 pass
         
@@ -172,6 +204,84 @@ Balance has {change_type} by {abs(balance_change):.6f} ETH
     except Exception as e:
         logging.error(f"Error in real-time balance check for {wallet_config.address}: {str(e)}")
         return False
+
+def check_latest_block(socketio_instance, last_known_block):
+    """Check for new blocks and emit log events"""
+    try:
+        etherscan = EtherscanAPI()
+        
+        # Get current block number
+        current_timestamp = int(time.time())
+        current_block_str = etherscan.get_block_number_by_timestamp(current_timestamp, 'before')
+        
+        if current_block_str and current_block_str.isdigit():
+            current_block = int(current_block_str)
+            
+            if current_block > last_known_block and last_known_block > 0:
+                blocks_diff = current_block - last_known_block
+                try:
+                    socketio_instance.emit('log_event', {
+                        'source': 'Blockchain',
+                        'message': f'New block(s) detected: #{current_block} (+{blocks_diff} blocks)',
+                        'level': 'info'
+                    })
+                except:
+                    pass
+                logging.info(f"New blocks detected: {last_known_block} -> {current_block}")
+            
+            return current_block
+        
+        return last_known_block
+        
+    except Exception as e:
+        logging.error(f"Error checking latest block: {str(e)}")
+        return last_known_block
+
+def check_new_transactions(wallet_config, socketio_instance):
+    """Check for new transactions for a wallet"""
+    try:
+        etherscan = EtherscanAPI()
+        transactions = etherscan.get_transactions(wallet_config.address, page=1, offset=5)
+        
+        if not transactions:
+            return
+            
+        # Check the most recent transaction
+        latest_tx = transactions[0]
+        tx_hash = latest_tx.get('hash', '')
+        
+        # Check if this is a new transaction we haven't seen
+        if hasattr(wallet_config, '_last_tx_hash') and wallet_config._last_tx_hash == tx_hash:
+            return  # Same transaction as before
+            
+        # Store the latest transaction hash
+        wallet_config._last_tx_hash = tx_hash
+        
+        # Determine transaction direction
+        is_incoming = latest_tx.get('to', '').lower() == wallet_config.address.lower()
+        is_outgoing = latest_tx.get('from', '').lower() == wallet_config.address.lower()
+        
+        if is_incoming or is_outgoing:
+            value_wei = int(latest_tx.get('value', '0'))
+            value_eth = float(Web3.from_wei(value_wei, 'ether'))
+            
+            direction = "incoming" if is_incoming else "outgoing"
+            other_address = latest_tx.get('from') if is_incoming else latest_tx.get('to')
+            
+            if value_eth > 0:  # Only log transactions with value
+                try:
+                    socketio_instance.emit('log_event', {
+                        'source': wallet_config.address,
+                        'message': f'{direction.capitalize()} transaction: {value_eth:.6f} ETH {direction} {other_address[:10]}... (Block #{latest_tx.get("blockNumber", "pending")})',
+                        'level': 'success' if is_incoming else 'warning'
+                    })
+                except:
+                    pass
+                    
+                logging.info(f"Transaction detected for {wallet_config.address}: {direction} {value_eth:.6f} ETH")
+            
+    except Exception as e:
+        logging.error(f"Error checking transactions for {wallet_config.address}: {str(e)}")
 
 def emit_wallet_update(socketio_instance, wallet_config):
     """Emit real-time wallet update to all connected clients"""
