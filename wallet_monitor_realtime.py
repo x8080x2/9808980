@@ -12,6 +12,7 @@ from forwarding import check_for_incoming_payments
 # Global thread control
 monitoring_thread = None
 should_stop_monitoring = False
+last_heartbeat_time = 0
 
 def start_realtime_monitoring(socketio_instance):
     """Start real-time monitoring in a separate thread"""
@@ -66,16 +67,17 @@ def realtime_monitor_loop(socketio_instance):
                 active_wallets = WalletConfig.query.filter_by(is_active=True).all()
                 
                 # Emit monitoring heartbeat (less frequent to avoid spam)
-                import time
+                global last_heartbeat_time
                 current_time = int(time.time())
-                if not hasattr(realtime_monitor_loop, '_last_heartbeat') or current_time - realtime_monitor_loop._last_heartbeat > 60:  # Every minute
+                
+                if current_time - last_heartbeat_time > 60:  # Every minute
                     try:
                         socketio_instance.emit('log_event', {
                             'source': 'Monitor',
                             'message': f'⏰ Monitoring heartbeat: {len(active_wallets)} active wallets at block #{last_block_number}',
                             'level': 'info'
                         })
-                        realtime_monitor_loop._last_heartbeat = current_time
+                        last_heartbeat_time = current_time
                     except:
                         pass
                 
@@ -282,9 +284,10 @@ def check_new_transactions(wallet_config, socketio_instance):
             if value_eth > 0:  # Only log transactions with value
                 try:
                     emoji = "📥" if is_incoming else "📤"
+                    other_address_short = other_address[:10] + "..." if other_address and len(other_address) > 10 else (other_address or "unknown")
                     socketio_instance.emit('log_event', {
                         'source': wallet_config.address,
-                        'message': f'{emoji} {direction.capitalize()} transaction: {value_eth:.6f} ETH {direction} {other_address[:10]}... (Block #{latest_tx.get("blockNumber", "pending")})',
+                        'message': f'{emoji} {direction.capitalize()} transaction: {value_eth:.6f} ETH {direction} {other_address_short} (Block #{latest_tx.get("blockNumber", "pending")})',
                         'level': 'success' if is_incoming else 'warning'
                     })
                     
