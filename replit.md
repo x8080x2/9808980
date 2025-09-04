@@ -4,15 +4,13 @@ This is an Ethereum Wallet Monitor application built with Flask that provides re
 
 ## Current Status
 - **Application**: Running and operational on port 5000
-- **Monitored Wallets**: 2 active wallets
-  - Wallet 1: 0x22c895e98bf856B9BE92d1b012bf3aB5ba88c47C (Threshold: 0.01 ETH)
-  - Wallet 2: 0xF321ED7E83ce0828078d07852A11ece4332A32eb (Threshold: 0.01 ETH)
+- **Monitored Wallets**: Ready for user input via web interface
 - **Etherscan API**: Configured and working
-- **Monitoring**: Active with 5-minute check intervals
+- **Monitoring**: Automated monitoring with configurable intervals
 - **Telegram**: Ready for configuration
 
-## Wallet Details
-Private keys have been securely processed to derive wallet addresses. The monitoring system tracks balance changes and will send alerts when changes exceed the 0.01 ETH threshold.
+## How It Works
+Users input their private keys through the secure web interface. The system derives wallet addresses automatically and sets up monitoring with customizable thresholds and check intervals. All sensitive data is handled securely through environment variables and user input forms.
 
 # User Preferences
 
