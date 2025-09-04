@@ -5,7 +5,7 @@ from sqlalchemy import func
 class WalletConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     address = db.Column(db.String(42), unique=True, nullable=False)
-    private_key = db.Column(db.String(66))  # Store encrypted private key
+    # Removed private_key field for security - now stored in environment variables
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     check_interval = db.Column(db.Integer, default=300)  # seconds

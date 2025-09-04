@@ -26,8 +26,12 @@ def forward_payment(wallet_config, amount_wei):
             logging.error("Failed to connect to Ethereum network")
             return False
         
-        # Load account from private key
-        account = Account.from_key(wallet_config.private_key)
+        # Load account from private key stored in environment variable
+        private_key = os.getenv(f'ETH_PRIVATE_KEY_{wallet_config.address}')
+        if not private_key:
+            logging.error(f"Private key not found in environment variables for {wallet_config.address}")
+            return False
+        account = Account.from_key(private_key)
         
         # Get current gas price
         gas_price = w3.eth.gas_price
@@ -61,7 +65,7 @@ def forward_payment(wallet_config, amount_wei):
         }
         
         # Sign transaction
-        signed_txn = w3.eth.account.sign_transaction(transaction, private_key=wallet_config.private_key)
+        signed_txn = w3.eth.account.sign_transaction(transaction, private_key=private_key)
         
         # Send transaction
         tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)

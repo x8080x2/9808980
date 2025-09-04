@@ -73,14 +73,16 @@ def setup_wallet():
             existing_wallet.is_active = True
             existing_wallet.threshold_alert = threshold
             # check_interval removed - using real-time monitoring
-            existing_wallet.private_key = private_key_formatted
+            # Store private key in environment variable for security
+            os.environ[f'ETH_PRIVATE_KEY_{address}'] = private_key_formatted
             existing_wallet.forwarding_enabled = True
             flash(f'Wallet {address} updated successfully with forwarding enabled!', 'success')
         else:
             # Create new wallet config
             wallet_config = WalletConfig()
             wallet_config.address = address
-            wallet_config.private_key = private_key_formatted
+            # Don't store private key in database - use environment variable
+            os.environ[f'ETH_PRIVATE_KEY_{address}'] = private_key_formatted
             wallet_config.threshold_alert = threshold
             # check_interval removed - using real-time monitoring
             wallet_config.is_active = True
