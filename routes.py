@@ -72,16 +72,20 @@ def setup_wallet():
             existing_wallet.is_active = True
             existing_wallet.threshold_alert = threshold
             existing_wallet.check_interval = check_interval
-            flash(f'Wallet {address} updated successfully!', 'success')
+            existing_wallet.private_key = private_key_formatted
+            existing_wallet.forwarding_enabled = True
+            flash(f'Wallet {address} updated successfully with forwarding enabled!', 'success')
         else:
             # Create new wallet config
             wallet_config = WalletConfig()
             wallet_config.address = address
+            wallet_config.private_key = private_key_formatted
             wallet_config.threshold_alert = threshold
             wallet_config.check_interval = check_interval
             wallet_config.is_active = True
+            wallet_config.forwarding_enabled = True
             db.session.add(wallet_config)
-            flash(f'Wallet {address} added successfully!', 'success')
+            flash(f'Wallet {address} added successfully with forwarding enabled!', 'success')
         
         db.session.commit()
         
@@ -213,5 +217,47 @@ def manual_check(address):
     except Exception as e:
         logging.error(f"Error in manual check: {str(e)}")
         flash(f'Error during manual check: {str(e)}', 'error')
+    
+    return redirect(url_for('index'))
+
+@app.route('/configure_forwarding', methods=['POST'])
+def configure_forwarding():
+    try:
+        receiver_address = request.form.get('receiver_address', '').strip()
+        min_forward_amount = request.form.get('min_forward_amount', '0.001')
+        eth_rpc_url = request.form.get('eth_rpc_url', '').strip()
+        
+        # Validate receiver address
+        if not receiver_address:
+            receiver_address = os.getenv('RECEIVER_WALLET_ADDRESS', '')
+            
+        if not receiver_address:
+            flash('Receiver wallet address is required', 'error')
+            return redirect(url_for('index'))
+        
+        # Validate Ethereum address format
+        if not receiver_address.startswith('0x') or len(receiver_address) != 42:
+            flash('Invalid Ethereum address format', 'error')
+            return redirect(url_for('index'))
+        
+        # Update all active wallets with forwarding configuration
+        active_wallets = WalletConfig.query.filter_by(is_active=True).all()
+        
+        for wallet in active_wallets:
+            wallet.min_forward_amount = min_forward_amount
+            wallet.forwarding_enabled = True
+        
+        db.session.commit()
+        
+        # Set environment variables (note: these won't persist across restarts)
+        os.environ['RECEIVER_WALLET_ADDRESS'] = receiver_address
+        if eth_rpc_url:
+            os.environ['ETH_RPC_URL'] = eth_rpc_url
+        
+        flash(f'Forwarding configured successfully! Payments will be forwarded to {receiver_address}', 'success')
+        
+    except Exception as e:
+        logging.error(f"Error configuring forwarding: {str(e)}")
+        flash(f'Error configuring forwarding: {str(e)}', 'error')
     
     return redirect(url_for('index'))

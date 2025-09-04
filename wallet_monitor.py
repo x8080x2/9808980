@@ -7,6 +7,7 @@ from models import WalletConfig, BalanceHistory, TelegramConfig
 from etherscan_api import EtherscanAPI
 from telegram_bot import TelegramBot
 from apscheduler.triggers.interval import IntervalTrigger
+from forwarding import check_for_incoming_payments
 
 def check_wallet_balance(wallet_config):
     """Check balance for a specific wallet and send notifications if needed"""
@@ -26,6 +27,10 @@ def check_wallet_balance(wallet_config):
             
             # Calculate balance change
             balance_change = current_balance_eth - previous_balance_eth
+            
+            # Check for incoming payments and trigger forwarding if enabled
+            if wallet_config.forwarding_enabled and balance_change > 0:
+                check_for_incoming_payments(wallet_config)
             
             # Update wallet config
             wallet_config.last_balance = current_balance_wei

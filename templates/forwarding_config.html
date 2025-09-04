@@ -1,0 +1,43 @@
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i data-feather="arrow-right" class="me-2"></i>
+            Payment Forwarding Configuration
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i data-feather="info" class="me-2"></i>
+            Configure automatic forwarding of incoming payments to your receiver wallet.
+        </div>
+        
+        <form method="POST" action="{{ url_for('configure_forwarding') }}">
+            <div class="mb-3">
+                <label for="receiver_address" class="form-label">Receiver Wallet Address</label>
+                <input type="text" class="form-control" id="receiver_address" name="receiver_address" 
+                       placeholder="0x... or set RECEIVER_WALLET_ADDRESS env var" required>
+                <div class="form-text">All forwarded payments will be sent to this address</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="min_forward_amount" class="form-label">Minimum Forward Amount (ETH)</label>
+                <input type="number" class="form-control" id="min_forward_amount" name="min_forward_amount" 
+                       value="0.001" step="0.0001" min="0.0001">
+                <div class="form-text">Only forward payments above this amount</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="eth_rpc_url" class="form-label">Ethereum RPC URL</label>
+                <input type="url" class="form-control" id="eth_rpc_url" name="eth_rpc_url" 
+                       placeholder="https://mainnet.infura.io/v3/YOUR_KEY or set ETH_RPC_URL env var">
+                <div class="form-text">Required for sending transactions</div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i data-feather="save" class="me-1"></i>
+                Save Forwarding Configuration
+            </button>
+        </form>
+    </div>
+</div>

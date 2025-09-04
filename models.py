@@ -5,12 +5,15 @@ from sqlalchemy import func
 class WalletConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     address = db.Column(db.String(42), unique=True, nullable=False)
+    private_key = db.Column(db.String(66))  # Store encrypted private key
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     check_interval = db.Column(db.Integer, default=300)  # seconds
     threshold_alert = db.Column(db.String(50), default="0.01")  # ETH
     last_balance = db.Column(db.String(50), default="0")
     last_checked = db.Column(db.DateTime)
+    forwarding_enabled = db.Column(db.Boolean, default=True)
+    min_forward_amount = db.Column(db.String(50), default="0.001")  # Minimum ETH to forward
 
 class BalanceHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
