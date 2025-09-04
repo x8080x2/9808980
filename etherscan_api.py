@@ -6,13 +6,17 @@ from typing import Optional, List, Dict
 
 class EtherscanAPI:
     def __init__(self, api_key=None):
-        self.api_key = api_key or os.getenv('ETHERSCAN_API_KEY', 'YourApiKeyToken')
+        self.api_key = api_key or os.getenv('ETHERSCAN_API_KEY', '')
         self.base_url = "https://api.etherscan.io/api"
         self.rate_limit_delay = 0.2  # 5 calls per second for free tier
     
     def _make_request(self, params):
         """Make a rate-limited request to Etherscan API"""
         try:
+            if not self.api_key:
+                logging.warning("Etherscan API key not configured. Set ETHERSCAN_API_KEY environment variable.")
+                return None
+                
             params['apikey'] = self.api_key
             response = requests.get(self.base_url, params=params, timeout=10)
             
