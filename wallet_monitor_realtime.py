@@ -42,6 +42,15 @@ def realtime_monitor_loop(socketio_instance):
     
     logging.info("Starting real-time wallet monitoring loop")
     
+    try:
+        socketio_instance.emit('log_event', {
+            'source': 'Monitor',
+            'message': 'Real-time monitoring loop started',
+            'level': 'success'
+        })
+    except:
+        pass
+    
     while not should_stop_monitoring:
         try:
             with app.app_context():
@@ -60,6 +69,14 @@ def realtime_monitor_loop(socketio_instance):
                             
                     except Exception as e:
                         logging.error(f"Error checking wallet {wallet.address}: {str(e)}")
+                        try:
+                            socketio_instance.emit('log_event', {
+                                'source': wallet.address,
+                                'message': f"Error during balance check: {str(e)}",
+                                'level': 'error'
+                            })
+                        except:
+                            pass
                         
                 # Small delay to prevent excessive API calls (check every 10 seconds)
                 time.sleep(10)
@@ -139,6 +156,16 @@ Balance has {change_type} by {abs(balance_change):.6f} ETH
             db.session.commit()
             
             logging.info(f"Real-time balance update for {wallet_config.address}: {current_balance_eth:.6f} ETH (change: {balance_change:+.6f})")
+            
+            # Emit log event for monitoring
+            try:
+                socketio_instance.emit('log_event', {
+                    'source': wallet_config.address,
+                    'message': f"Balance changed by {balance_change:+.6f} ETH (now {current_balance_eth:.6f} ETH)",
+                    'level': 'success' if balance_change > 0 else 'warning'
+                })
+            except:
+                pass
         
         return balance_changed
         

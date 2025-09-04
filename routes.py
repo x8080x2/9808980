@@ -221,6 +221,11 @@ def manual_check(address):
     
     return redirect(url_for('index'))
 
+@app.route('/logs')
+def logs():
+    """Display real-time log monitoring page"""
+    return render_template('logs.html')
+
 @app.route('/configure_forwarding', methods=['POST'])
 def configure_forwarding():
     try:

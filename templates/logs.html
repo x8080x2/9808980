@@ -1,0 +1,448 @@
+
+{% extends "base.html" %}
+
+{% block title %}Activity Logs - Ethereum Wallet Monitor{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i data-feather="activity" class="me-2"></i>
+                    Live Activity Monitor
+                </h2>
+                <div>
+                    <button id="clearLogs" class="btn btn-outline-secondary me-2">
+                        <i data-feather="trash-2" class="me-1"></i>
+                        Clear Logs
+                    </button>
+                    <button id="pauseLogs" class="btn btn-outline-primary">
+                        <i data-feather="pause" class="me-1"></i>
+                        Pause
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <div id="connectionStatus" class="status-indicator me-2"></div>
+                                <span id="connectionText">Connecting...</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Active Wallets:</strong> 
+                            <span id="activeWalletCount" class="badge bg-primary">0</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Total Events:</strong> 
+                            <span id="eventCount" class="badge bg-info">0</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Last Update:</strong> 
+                            <span id="lastUpdate" class="text-muted">Never</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="logLevel" class="form-label">Log Level</label>
+                            <select id="logLevel" class="form-select">
+                                <option value="all">All Levels</option>
+                                <option value="info">Info</option>
+                                <option value="success">Success</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="walletFilter" class="form-label">Wallet Filter</label>
+                            <select id="walletFilter" class="form-select">
+                                <option value="all">All Wallets</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="autoScroll" class="form-label">Auto Scroll</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="autoScroll" checked>
+                                <label class="form-check-label" for="autoScroll">
+                                    Scroll to bottom
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="maxLogs" class="form-label">Max Log Entries</label>
+                            <select id="maxLogs" class="form-select">
+                                <option value="100">100</option>
+                                <option value="500" selected>500</option>
+                                <option value="1000">1000</option>
+                                <option value="unlimited">Unlimited</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Display -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="terminal" class="me-2"></i>
+                        Activity Log Stream
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="logContainer" class="log-container">
+                        <div class="text-center py-4 text-muted">
+                            <i data-feather="clock" class="mb-2" style="width: 24px; height: 24px;"></i>
+                            <p>Waiting for log events...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.log-container {
+    height: 600px;
+    overflow-y: auto;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.log-entry {
+    padding: 8px 16px;
+    border-bottom: 1px solid #333;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.log-entry:hover {
+    background-color: #2a2a2a;
+}
+
+.log-info { color: #17a2b8; }
+.log-success { color: #28a745; }
+.log-warning { color: #ffc107; }
+.log-error { color: #dc3545; }
+
+.log-timestamp {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.log-wallet {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    display: inline-block;
+    animation: pulse 2s infinite;
+}
+
+.status-connected {
+    background-color: #28a745;
+}
+
+.status-disconnected {
+    background-color: #dc3545;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.card {
+    border: 1px solid #333;
+}
+
+.card-header {
+    background-color: #343a40;
+    border-bottom: 1px solid #333;
+}
+</style>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+class LogMonitor {
+    constructor() {
+        this.socket = io();
+        this.logs = [];
+        this.paused = false;
+        this.eventCount = 0;
+        this.maxLogs = 500;
+        this.activeWallets = new Set();
+        
+        this.init();
+    }
+
+    init() {
+        this.setupSocketListeners();
+        this.setupEventListeners();
+        this.updateConnectionStatus('connecting');
+    }
+
+    setupSocketListeners() {
+        this.socket.on('connect', () => {
+            this.updateConnectionStatus('connected');
+            this.addLog('System', 'Connected to monitoring system', 'success');
+        });
+
+        this.socket.on('disconnect', () => {
+            this.updateConnectionStatus('disconnected');
+            this.addLog('System', 'Disconnected from monitoring system', 'warning');
+        });
+
+        this.socket.on('balance_update', (data) => {
+            this.activeWallets.add(data.address);
+            this.addLog(
+                data.address,
+                `Balance updated: ${data.balance} ETH at ${new Date(data.timestamp).toLocaleTimeString()}`,
+                'info'
+            );
+            this.updateStats();
+        });
+
+        this.socket.on('monitoring_status', (data) => {
+            const level = data.status === 'started' ? 'success' : 'warning';
+            this.addLog('Monitor', data.message, level);
+        });
+
+        this.socket.on('wallet_status', (wallets) => {
+            wallets.forEach(wallet => {
+                this.activeWallets.add(wallet.address);
+            });
+            this.updateWalletFilter();
+            this.updateStats();
+            this.addLog('System', `Loaded ${wallets.length} active wallets`, 'info');
+        });
+
+        // Custom log events
+        this.socket.on('log_event', (data) => {
+            this.addLog(data.source || 'System', data.message, data.level || 'info');
+        });
+    }
+
+    setupEventListeners() {
+        document.getElementById('clearLogs').addEventListener('click', () => {
+            this.clearLogs();
+        });
+
+        document.getElementById('pauseLogs').addEventListener('click', () => {
+            this.togglePause();
+        });
+
+        document.getElementById('logLevel').addEventListener('change', () => {
+            this.filterLogs();
+        });
+
+        document.getElementById('walletFilter').addEventListener('change', () => {
+            this.filterLogs();
+        });
+
+        document.getElementById('maxLogs').addEventListener('change', (e) => {
+            this.maxLogs = e.target.value === 'unlimited' ? Infinity : parseInt(e.target.value);
+            this.trimLogs();
+        });
+    }
+
+    addLog(source, message, level = 'info') {
+        if (this.paused) return;
+
+        const timestamp = new Date();
+        const logEntry = {
+            id: Date.now() + Math.random(),
+            timestamp,
+            source,
+            message,
+            level
+        };
+
+        this.logs.unshift(logEntry);
+        this.eventCount++;
+        this.trimLogs();
+        this.renderLogs();
+        this.updateStats();
+
+        if (document.getElementById('autoScroll').checked) {
+            this.scrollToBottom();
+        }
+    }
+
+    trimLogs() {
+        if (this.logs.length > this.maxLogs && this.maxLogs !== Infinity) {
+            this.logs = this.logs.slice(0, this.maxLogs);
+        }
+    }
+
+    clearLogs() {
+        this.logs = [];
+        this.eventCount = 0;
+        this.renderLogs();
+        this.updateStats();
+    }
+
+    togglePause() {
+        this.paused = !this.paused;
+        const button = document.getElementById('pauseLogs');
+        const icon = button.querySelector('i');
+        
+        if (this.paused) {
+            button.innerHTML = '<i data-feather="play" class="me-1"></i> Resume';
+            button.classList.replace('btn-outline-primary', 'btn-outline-success');
+        } else {
+            button.innerHTML = '<i data-feather="pause" class="me-1"></i> Pause';
+            button.classList.replace('btn-outline-success', 'btn-outline-primary');
+        }
+        feather.replace();
+    }
+
+    filterLogs() {
+        const levelFilter = document.getElementById('logLevel').value;
+        const walletFilter = document.getElementById('walletFilter').value;
+
+        let filteredLogs = this.logs;
+
+        if (levelFilter !== 'all') {
+            filteredLogs = filteredLogs.filter(log => log.level === levelFilter);
+        }
+
+        if (walletFilter !== 'all') {
+            filteredLogs = filteredLogs.filter(log => log.source === walletFilter);
+        }
+
+        this.renderLogs(filteredLogs);
+    }
+
+    renderLogs(logsToRender = this.logs) {
+        const container = document.getElementById('logContainer');
+        
+        if (logsToRender.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <i data-feather="inbox" class="mb-2" style="width: 24px; height: 24px;"></i>
+                    <p>No log entries match the current filters</p>
+                </div>
+            `;
+            feather.replace();
+            return;
+        }
+
+        const html = logsToRender.map(log => {
+            const timeStr = log.timestamp.toLocaleTimeString();
+            const shortAddress = log.source.startsWith('0x') ? 
+                log.source.slice(0, 8) + '...' : log.source;
+            
+            return `
+                <div class="log-entry log-${log.level}">
+                    <span class="log-timestamp">[${timeStr}]</span>
+                    <span class="log-wallet">${shortAddress}:</span>
+                    ${log.message}
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    updateConnectionStatus(status) {
+        const indicator = document.getElementById('connectionStatus');
+        const text = document.getElementById('connectionText');
+        
+        indicator.className = `status-indicator status-${status}`;
+        
+        switch(status) {
+            case 'connected':
+                text.textContent = 'Connected';
+                text.className = 'text-success';
+                break;
+            case 'disconnected':
+                text.textContent = 'Disconnected';
+                text.className = 'text-danger';
+                break;
+            case 'connecting':
+                text.textContent = 'Connecting...';
+                text.className = 'text-warning';
+                break;
+        }
+    }
+
+    updateStats() {
+        document.getElementById('activeWalletCount').textContent = this.activeWallets.size;
+        document.getElementById('eventCount').textContent = this.eventCount;
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    }
+
+    updateWalletFilter() {
+        const select = document.getElementById('walletFilter');
+        const currentValue = select.value;
+        
+        // Clear existing options except "All"
+        select.innerHTML = '<option value="all">All Wallets</option>';
+        
+        // Add wallet options
+        Array.from(this.activeWallets).forEach(address => {
+            const shortAddress = address.slice(0, 8) + '...';
+            const option = document.createElement('option');
+            option.value = address;
+            option.textContent = shortAddress;
+            select.appendChild(option);
+        });
+
+        // Add system sources
+        ['System', 'Monitor'].forEach(source => {
+            const option = document.createElement('option');
+            option.value = source;
+            option.textContent = source;
+            select.appendChild(option);
+        });
+
+        select.value = currentValue;
+    }
+
+    scrollToBottom() {
+        const container = document.getElementById('logContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.logMonitor = new LogMonitor();
+    feather.replace();
+});
+</script>
+{% endblock %}
