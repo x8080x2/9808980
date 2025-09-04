@@ -88,7 +88,11 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <!-- Auto scroll removed -->
+                            <label for="manualCheck" class="form-label">Manual Actions</label>
+                            <button id="manualCheckAll" class="btn btn-outline-info form-control">
+                                <i data-feather="refresh-cw" class="me-1"></i>
+                                Check All Wallets
+                            </button>
                         </div>
                         <div class="col-md-3">
                             <label for="maxLogs" class="form-label">Max Log Entries</label>
@@ -265,9 +269,8 @@ class LogMonitor {
         this.socket.on('connect', () => {
             this.updateConnectionStatus('connected');
             this.addLog('System', 'Connected to monitoring system', 'success');
-            this.socket.emit('start_monitoring');
-            // Check wallets periodically instead of continuous monitoring
-            this.startPeriodicChecks();
+            // Don't automatically start monitoring - wait for explicit request
+            // this.socket.emit('start_monitoring');
         });
 
         this.socket.on('disconnect', () => {
@@ -276,6 +279,12 @@ class LogMonitor {
             if (this.monitoringInterval) {
                 clearInterval(this.monitoringInterval);
             }
+        });
+
+        // Handle connection errors
+        this.socket.on('connect_error', (error) => {
+            this.updateConnectionStatus('disconnected');
+            this.addLog('System', `Connection error: ${error}`, 'error');
         });
 
         this.socket.on('balance_update', (data) => {
@@ -356,6 +365,10 @@ class LogMonitor {
             this.maxLogs = e.target.value === 'unlimited' ? Infinity : parseInt(e.target.value);
             this.trimLogs();
             this.renderLogs();
+        });
+
+        document.getElementById('manualCheckAll').addEventListener('click', () => {
+            this.checkAllWallets();
         });
     }
 
@@ -560,18 +573,24 @@ class LogMonitor {
         }
     }
 
-    // Periodic wallet check
-    startPeriodicChecks() {
-        // Clear any existing interval to prevent duplicates
-        if (this.monitoringInterval) {
-            clearInterval(this.monitoringInterval);
+    // Manual wallet check only - no automatic periodic checks
+    checkWalletManually(address) {
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('check_wallet', { address: address });
+            this.addLog('System', `Manual check requested for ${address}`, 'info');
         }
-        // Check every 30 seconds
-        this.monitoringInterval = setInterval(() => {
-            this.activeWallets.forEach(address => {
-                this.socket.emit('check_wallet_balance', { address: address });
-            });
-        }, 30000); // 30 seconds
+    }
+
+    checkAllWallets() {
+        if (this.activeWallets.size === 0) {
+            this.addLog('System', 'No active wallets to check', 'warning');
+            return;
+        }
+
+        this.addLog('System', `Checking ${this.activeWallets.size} wallets...`, 'info');
+        this.activeWallets.forEach(address => {
+            this.checkWalletManually(address);
+        });
     }
 
     // Helper methods for log levels

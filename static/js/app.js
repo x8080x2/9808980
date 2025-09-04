@@ -15,8 +15,6 @@ class WalletMonitor {
         
         // Initialize tooltips and popovers
         this.initializeBootstrapComponents();
-        
-        // WebSocket monitoring is handled by individual pages as needed
     }
 
     setupEventListeners() {

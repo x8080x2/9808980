@@ -276,23 +276,15 @@ def configure_forwarding():
 def handle_connect():
     logging.info('Client connected to WebSocket')
     
-    # Send current wallet status
+    # Send lightweight wallet status (no API calls on connect)
     try:
         wallets = WalletConfig.query.filter_by(is_active=True).all()
         wallet_data = []
         
         for wallet in wallets:
-            # Get current balance
-            try:
-                etherscan = EtherscanAPI()
-                current_balance = etherscan.get_balance(wallet.address)
-                current_balance_eth = float(Web3.from_wei(int(current_balance) if current_balance else 0, 'ether'))
-            except:
-                current_balance_eth = 0
-                
             wallet_data.append({
                 'address': wallet.address,
-                'balance': current_balance_eth,
+                'balance': 0,  # Don't fetch balance on connect to prevent timeout
                 'threshold': wallet.threshold_alert,
                 'is_active': wallet.is_active
             })
@@ -327,9 +319,30 @@ def handle_stop_monitoring():
 @socketio.on('check_wallet')
 def handle_check_wallet(data):
     """Check a specific wallet on demand"""
-    from wallet_monitor_realtime import check_single_wallet_on_demand
-    
     wallet_address = data.get('address')
-    if wallet_address:
-        success = check_single_wallet_on_demand(wallet_address)
-        emit('wallet_check_result', {'address': wallet_address, 'success': success})
+    if not wallet_address:
+        return
+        
+    try:
+        wallet = WalletConfig.query.filter_by(address=wallet_address, is_active=True).first()
+        if not wallet:
+            emit('wallet_check_result', {'address': wallet_address, 'success': False, 'error': 'Wallet not found'})
+            return
+            
+        # Get current balance
+        etherscan = EtherscanAPI()
+        current_balance = etherscan.get_balance(wallet_address)
+        current_balance_eth = float(Web3.from_wei(int(current_balance) if current_balance else 0, 'ether'))
+        
+        # Emit balance update
+        emit('balance_update', {
+            'address': wallet_address,
+            'balance': current_balance_eth,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+        emit('wallet_check_result', {'address': wallet_address, 'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error checking wallet {wallet_address}: {str(e)}")
+        emit('wallet_check_result', {'address': wallet_address, 'success': False, 'error': str(e)})
