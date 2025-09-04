@@ -33,18 +33,18 @@
                             Private key will be used to derive wallet address. Store securely in environment variables.
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="threshold" class="form-label">Alert Threshold (ETH)</label>
                         <input type="number" class="form-control" id="threshold" name="threshold" 
                                value="0.01" step="0.001" min="0">
                     </div>
-                    
+
                     <div class="alert alert-info">
                         <i data-feather="zap" class="me-2"></i>
                         Real-time monitoring enabled - instant balance updates via WebSocket
                     </div>
-                    
+
                     <button type="submit" class="btn btn-primary">
                         <i data-feather="plus" class="me-1"></i>
                         Add Wallet
@@ -53,7 +53,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Telegram Setup -->
     <div class="col-md-6 mb-3">
         <div class="card">
@@ -75,13 +75,13 @@
                         <input type="password" class="form-control" id="bot_token" name="bot_token" 
                                placeholder="Bot token or set TELEGRAM_BOT_TOKEN env var">
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="chat_id" class="form-label">Chat ID</label>
                         <input type="text" class="form-control" id="chat_id" name="chat_id" 
                                placeholder="Chat ID or set TELEGRAM_CHAT_ID env var">
                     </div>
-                    
+
                     <button type="submit" class="btn btn-primary">
                         <i data-feather="settings" class="me-1"></i>
                         Configure Telegram
@@ -307,26 +307,26 @@
     // Initialize WebSocket connection
     const socket = io();
     let monitoringActive = false;
-    
+
     socket.on('connect', function() {
         console.log('Connected to real-time monitoring');
-        
+
         // Auto-start monitoring when connected
         socket.emit('start_monitoring');
         showMonitoringStatus('Connecting to real-time monitoring...', 'info');
     });
-    
+
     socket.on('disconnect', function() {
         console.log('Disconnected from real-time monitoring');
         showMonitoringStatus('Disconnected from real-time monitoring', 'warning');
     });
-    
+
     socket.on('balance_update', function(data) {
         console.log('Balance update received:', data);
         updateWalletBalance(data);
         showMonitoringStatus(`Balance updated for ${data.address.slice(0,8)}...`, 'success');
     });
-    
+
     socket.on('monitoring_status', function(data) {
         console.log('Monitoring status:', data);
         if (data.status === 'started') {
@@ -337,11 +337,11 @@
             showMonitoringStatus('⏸️ Real-time monitoring stopped', 'secondary');
         }
     });
-    
+
     socket.on('wallet_status', function(wallets) {
         console.log('Initial wallet status received:', wallets);
     });
-    
+
     function updateWalletBalance(data) {
         // Update balance in the table
         const rows = document.querySelectorAll('tbody tr');
@@ -350,7 +350,7 @@
             if (addressCell && addressCell.textContent.includes(data.address.slice(0,10))) {
                 const balanceCell = row.cells[1];
                 balanceCell.innerHTML = `${data.balance.toFixed(6)} ETH`;
-                
+
                 // Add visual feedback for update
                 balanceCell.classList.add('bg-success', 'text-white');
                 setTimeout(() => {
@@ -358,7 +358,7 @@
                 }, 2000);
             }
         });
-        
+
         // Update last checked time
         const now = new Date();
         rows.forEach(row => {
@@ -369,21 +369,21 @@
             }
         });
     }
-    
+
     function showMonitoringStatus(message, type) {
         // Update system status or show temporary notification
         const statusArea = document.querySelector('.system-status-realtime');
         if (statusArea) {
             statusArea.innerHTML = `<small class="text-${type}">${message}</small>`;
         }
-        
+
         // Show temporary toast-like notification
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
-    
+
     // Initialize feather icons after dynamic content
     feather.replace();
-    
+
     // Add real-time status indicator to system status
     document.addEventListener('DOMContentLoaded', function() {
         const systemStatus = document.querySelector('.card-body .row');

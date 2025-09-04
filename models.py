@@ -32,6 +32,19 @@ class TelegramConfig(db.Model):
 
 class TransactionLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    wallet_address = db.Column(db.String(42), db.ForeignKey('wallet_config.address'), nullable=False)
+    tx_hash = db.Column(db.String(66), unique=True, nullable=False)
+    block_number = db.Column(db.Integer)
+    from_address = db.Column(db.String(42), nullable=False)
+    to_address = db.Column(db.String(42), nullable=False)
+    value = db.Column(db.String(50), nullable=False)
+    gas_used = db.Column(db.String(50))
+    is_incoming = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class TransactionLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
     wallet_address = db.Column(db.String(42), nullable=False)
     tx_hash = db.Column(db.String(66), unique=True, nullable=False)
     block_number = db.Column(db.Integer)
