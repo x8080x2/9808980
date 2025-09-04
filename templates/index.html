@@ -27,7 +27,7 @@
                 <form action="{{ url_for('setup_wallet') }}" method="POST">
                     <div class="mb-3">
                         <label for="private_key" class="form-label">Private Key</label>
-                        <input type="password" class="form-control" id="private_key" name="private_key" 
+                        <input type="password" class="form-control" id="private_key" name="private_key"
                                placeholder="Enter private key or set ETH_PRIVATE_KEY env var">
                         <div class="form-text">
                             Private key will be used to derive wallet address. Store securely in environment variables.
@@ -36,7 +36,7 @@
 
                     <div class="mb-3">
                         <label for="threshold" class="form-label">Alert Threshold (ETH)</label>
-                        <input type="number" class="form-control" id="threshold" name="threshold" 
+                        <input type="number" class="form-control" id="threshold" name="threshold"
                                value="0.01" step="0.001" min="0">
                     </div>
 
@@ -72,13 +72,13 @@
                 <form action="{{ url_for('setup_telegram') }}" method="POST">
                     <div class="mb-3">
                         <label for="bot_token" class="form-label">Bot Token</label>
-                        <input type="password" class="form-control" id="bot_token" name="bot_token" 
+                        <input type="password" class="form-control" id="bot_token" name="bot_token"
                                placeholder="Bot token or set TELEGRAM_BOT_TOKEN env var">
                     </div>
 
                     <div class="mb-3">
                         <label for="chat_id" class="form-label">Chat ID</label>
-                        <input type="text" class="form-control" id="chat_id" name="chat_id" 
+                        <input type="text" class="form-control" id="chat_id" name="chat_id"
                                placeholder="Chat ID or set TELEGRAM_CHAT_ID env var">
                     </div>
 
@@ -153,15 +153,15 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('wallet_details', address=wallet.address) }}" 
+                                            <a href="{{ url_for('wallet_details', address=wallet.address) }}"
                                                class="btn btn-outline-primary">
                                                 <i data-feather="eye" width="16" height="16"></i>
                                             </a>
-                                            <a href="{{ url_for('manual_check', address=wallet.address) }}" 
+                                            <a href="{{ url_for('manual_check', address=wallet.address) }}"
                                                class="btn btn-outline-info">
                                                 <i data-feather="refresh-cw" width="16" height="16"></i>
                                             </a>
-                                            <a href="{{ url_for('toggle_wallet', address=wallet.address) }}" 
+                                            <a href="{{ url_for('toggle_wallet', address=wallet.address) }}"
                                                class="btn btn-outline-secondary">
                                                 <i data-feather="{% if wallet.is_active %}pause{% else %}play{% endif %}" width="16" height="16"></i>
                                             </a>

@@ -65,15 +65,19 @@ def realtime_monitor_loop(socketio_instance):
                 
                 active_wallets = WalletConfig.query.filter_by(is_active=True).all()
                 
-                # Emit monitoring heartbeat
-                try:
-                    socketio_instance.emit('log_event', {
-                        'source': 'Monitor',
-                        'message': f'Monitoring {len(active_wallets)} wallets at block {last_block_number}',
-                        'level': 'info'
-                    })
-                except:
-                    pass
+                # Emit monitoring heartbeat (less frequent to avoid spam)
+                import time
+                current_time = int(time.time())
+                if not hasattr(realtime_monitor_loop, '_last_heartbeat') or current_time - realtime_monitor_loop._last_heartbeat > 60:  # Every minute
+                    try:
+                        socketio_instance.emit('log_event', {
+                            'source': 'Monitor',
+                            'message': f'⏰ Monitoring heartbeat: {len(active_wallets)} active wallets at block #{last_block_number}',
+                            'level': 'info'
+                        })
+                        realtime_monitor_loop._last_heartbeat = current_time
+                    except:
+                        pass
                 
                 for wallet in active_wallets:
                     if should_stop_monitoring:
@@ -222,8 +226,15 @@ def check_latest_block(socketio_instance, last_known_block):
                 try:
                     socketio_instance.emit('log_event', {
                         'source': 'Blockchain',
-                        'message': f'New block(s) detected: #{current_block} (+{blocks_diff} blocks)',
+                        'message': f'⛏️ New block(s) mined: #{current_block} (+{blocks_diff} blocks since last check)',
                         'level': 'info'
+                    })
+                    
+                    # Also emit block monitor event for enhanced logging
+                    socketio_instance.emit('block_monitor', {
+                        'blockNumber': current_block,
+                        'miner': 'Unknown',
+                        'transactions': []
                     })
                 except:
                     pass
@@ -270,10 +281,21 @@ def check_new_transactions(wallet_config, socketio_instance):
             
             if value_eth > 0:  # Only log transactions with value
                 try:
+                    emoji = "📥" if is_incoming else "📤"
                     socketio_instance.emit('log_event', {
                         'source': wallet_config.address,
-                        'message': f'{direction.capitalize()} transaction: {value_eth:.6f} ETH {direction} {other_address[:10]}... (Block #{latest_tx.get("blockNumber", "pending")})',
+                        'message': f'{emoji} {direction.capitalize()} transaction: {value_eth:.6f} ETH {direction} {other_address[:10]}... (Block #{latest_tx.get("blockNumber", "pending")})',
                         'level': 'success' if is_incoming else 'warning'
+                    })
+                    
+                    # Also emit detailed transaction event
+                    socketio_instance.emit('transaction_monitor', {
+                        'hash': tx_hash,
+                        'from': latest_tx.get('from', ''),
+                        'to': latest_tx.get('to', ''),
+                        'value': f'{value_eth:.6f}',
+                        'gasUsed': latest_tx.get('gasUsed', '0'),
+                        'blockNumber': latest_tx.get('blockNumber', 'pending')
                     })
                 except:
                     pass
