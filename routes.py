@@ -43,12 +43,27 @@ def setup_wallet():
             flash('Private key is required. Please provide it in the form or set ETH_PRIVATE_KEY environment variable.', 'error')
             return redirect(url_for('index'))
         
-        # Ensure private key has proper format
-        if not private_key.startswith('0x'):
-            private_key = '0x' + private_key
+        # Clean and validate private key
+        private_key_clean = private_key.replace(' ', '').replace('\n', '').replace('\t', '')
+        
+        # Remove 0x prefix if present for validation
+        if private_key_clean.startswith('0x'):
+            private_key_clean = private_key_clean[2:]
+        
+        # Validate hex characters and length
+        if not all(c in '0123456789abcdefABCDEF' for c in private_key_clean):
+            flash('Private key contains invalid characters. Please use only hexadecimal characters (0-9, a-f).', 'error')
+            return redirect(url_for('index'))
+            
+        if len(private_key_clean) != 64:
+            flash('Private key must be exactly 64 hexadecimal characters long.', 'error')
+            return redirect(url_for('index'))
+        
+        # Add 0x prefix for Account.from_key
+        private_key_formatted = '0x' + private_key_clean
             
         # Derive address from private key
-        account = Account.from_key(private_key)
+        account = Account.from_key(private_key_formatted)
         address = account.address
         
         # Check if wallet already exists
